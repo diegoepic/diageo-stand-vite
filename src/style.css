@@ -1,0 +1,101 @@
+:root{
+  --gold:#c8a64a; --gold-2:#f6e7b8; --black:#0d0d0d; --ink:#111;
+  --green:#138a59; --green-d:#0f6a45; --jw:#6b5a25; --jw-d:#54461e;
+  --ok:#45d07b; --err:#ff5a6b; --txt:#f3f3f3; --muted:#b7b7b7;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color: transparent;}
+html,body{height:100%;margin:0;background:#000;font-family:system-ui,Segoe UI,Roboto,Arial;color:var(--txt);}
+button{cursor:pointer;border:0;font-weight:700;border-radius:16px}
+.screen{display:none;position:fixed;inset:0;padding: clamp(12px,2vw,24px);}
+.show{display:flex;align-items:center;justify-content:center}
+.full-bg{position:absolute;inset:0;background:center/cover no-repeat;z-index:-2}
+.veil{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.25),rgba(0,0,0,.55));z-index:-1}
+.cta{background:linear-gradient(var(--gold-2),var(--gold));color:#171309;font-size:clamp(20px,3.4vw,36px);padding:18px 28px;box-shadow:0 10px 24px rgba(0,0,0,.35)}
+.footer{position:fixed;left:16px;right:16px;bottom:12px;display:flex;justify-content:space-between;align-items:center;color:#ddd;font-size:clamp(12px,1.5vw,14px)}
+.gold{color:var(--gold)}
+.hidden{display:none !important}
+.card{width:min(100%, 820px);padding: clamp(16px,2.5vw,28px);border-radius:28px;
+      background: rgba(18,18,18,.66);backdrop-filter: blur(6px); border:1px solid rgba(255,255,255,.08);
+      box-shadow: 0 10px 30px rgba(0,0,0,.4);}
+.title{margin:0 0 10px 0;font-size: clamp(22px,2.8vw,34px);letter-spacing:.5px}
+.row{display:flex;gap:16px;flex-wrap:wrap}
+.row>*{flex:1}
+input{width:100%;padding:18px 18px;border-radius:16px;border:1px solid #2c2c2c;background:#0e0e0e;color:#eee;
+      font-size:clamp(18px,2vw,20px);outline:none}
+input:focus{border-color:#3e3e3e; box-shadow:0 0 0 4px rgba(255,255,255,.05)}
+label{color:#ddd;font-size:clamp(12px,1.6vw,14px);margin:6px 0 6px;display:block;letter-spacing:.3px}
+.btns{display:flex;gap:12px;flex-wrap:wrap;margin-top:16px}
+.btn{padding:16px 20px;background:#1a1a1a;color:#fff;border:1px solid #343434;font-size:clamp(16px,2vw,18px)}
+.btn.secondary{background:transparent}
+
+/* PREGUNTAS */
+.qwrap{width:min(100%,1100px);display:grid;gap:clamp(14px,2vw,18px)}
+.brand-head{display:flex;justify-content:space-between;align-items:flex-end}
+.brand-name{font-size: clamp(20px,3vw,30px);margin:0}
+.question{font-size: clamp(20px,3vw,30px);margin:4px 0 8px 0;line-height:1.2}
+.options{display:grid;gap: clamp(12px,1.8vw,16px);grid-template-columns: 1fr; margin-top:4px}
+.opt{
+  display:flex; gap:16px; align-items:center; text-align:left; padding: clamp(16px,2vw,22px);
+  font-size: clamp(18px,2.4vw,24px); color:#fff; border-radius:20px; position:relative; overflow:hidden;
+  border:1px solid rgba(255,255,255,.08); box-shadow: 0 8px 18px rgba(0,0,0,.35);
+  transition: transform .08s ease, box-shadow .2s ease, filter .2s ease;
+}
+.opt:active{transform: scale(.98)}
+.opt.tq{background: linear-gradient(180deg,var(--green),var(--green-d))}
+.opt.jw{background: linear-gradient(180deg,var(--jw),var(--jw-d))}
+.letter{width:44px;height:44px;min-width:44px;border-radius:50%;background:rgba(0,0,0,.15);display:flex;align-items:center;justify-content:center;font-weight:800}
+.timer{height:12px;border-radius:10px;background:#2a2a2a;overflow:hidden}
+.timer>div{height:100%;background:linear-gradient(90deg,#53e39b,#47d391);width:100%}
+
+/* Feedback visual */
+.pulse-ok{animation: pulseOk .9s ease}
+@keyframes pulseOk{0%{box-shadow:0 0 0 0 rgba(69,208,123,.7)}100%{box-shadow:0 0 0 24px rgba(69,208,123,0)}}
+.shake{animation:shake .35s linear}
+@keyframes shake{10%,90%{transform:translateX(-2px)} 20%,80%{transform:translateX(4px)} 30%,50%,70%{transform:translateX(-6px)} 40%,60%{transform:translateX(6px)}}
+
+/* Toast */
+#toast{position:fixed;left:50%;bottom:6vh;transform:translateX(-50%);background:#111;color:#fff;border:1px solid #333;
+       padding:14px 18px;border-radius:999px;display:none;box-shadow:0 8px 24px rgba(0,0,0,.45);font-size:clamp(14px,2vw,18px)}
+#toast.ok{border-color:#39d48b}
+#toast.err{border-color:#ff6e7b}
+
+/* Overlay feedback (Correcto/Incorrecto) */
+.overlay{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.6);backdrop-filter: blur(3px)}
+.overlay.show{display:flex}
+.ov-card{padding:24px 28px;border-radius:24px;background:#0f0f0f;border:1px solid #333;text-align:center;box-shadow:0 14px 42px rgba(0,0,0,.5)}
+.ov-title{margin:0;color:#fff;font-size:clamp(22px,3.2vw,36px)}
+.ov-sub{margin:6px 0 0;color:#bbb}
+.ov-ok{border-color:#34d089}
+.ov-err{border-color:#ff6e7b}
+
+/* Badges final */
+.badges{position:absolute;top:16px;left:16px;display:flex;gap:10px}
+.badge{padding:10px 14px;border-radius:999px;border:1px solid #444;background:#0f0f0f;color:#eee}
+
+/* Admin */
+#staffPanel{position:fixed;inset:0;background:rgba(0,0,0,.8);backdrop-filter:blur(2px);display:none;align-items:center;justify-content:center}
+#staffPanel .card{width:min(100%, 880px)}
+
+/* Botón de portada: invisible, solo capta clics y foco */
+#scrHome #btnStart{
+  position:absolute;
+  background:transparent; 
+  color:transparent; 
+  border:0; 
+  box-shadow:none;
+  z-index:1;            /* por encima del .veil */
+  /* estas 4 las setea JS: left/top/width/height */
+}
+
+/* Opcional: modo debug para ver el rectángulo del botón */
+#scrHome #btnStart.debug{
+  outline:2px solid rgba(255,255,0,.9);
+  background:rgba(255,255,0,.12);
+  color:transparent;
+}
+
+/* Accesibilidad al navegar con teclado (si aplica) */
+#scrHome #btnStart:focus-visible{
+  outline:3px dashed #c8a64a;
+  outline-offset:6px;
+}
