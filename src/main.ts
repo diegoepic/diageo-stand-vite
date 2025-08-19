@@ -1,4 +1,6 @@
-// main.ts — lógica del Stand DIAGEO en TypeScript para Vite
+// src/main.ts — lógica del Stand DIAGEO en TypeScript para Vite
+// Incluye: flujo completo, IndexedDB, exportaciones, PWA, wake lock opcional,
+// overlay/toast, timer, y CALCE del botón “JUGAR” con el botón impreso en la imagen.
 
 import './style.css';
 
@@ -10,12 +12,19 @@ if ('serviceWorker' in navigator) {
 /* -------------- Helpers UI ----------- */
 const $ = <T extends HTMLElement = HTMLElement>(sel: string) => document.querySelector(sel) as T;
 const $$ = (sel: string) => Array.from(document.querySelectorAll(sel)) as HTMLElement[];
+
 let idleTimer: number | undefined;
 
 function show(id: string){
   $$('.screen').forEach(s => s.classList.remove('show'));
-  $('#'+id)!.classList.add('show');
+  const scr = $('#'+id)!;
+  scr.classList.add('show');
   resetIdle();
+
+  // Reposicionar CTA cuando entramos a la portada
+  if (id === 'scrHome') {
+    positionHomeCTA();
+  }
 }
 function resetIdle(){
   if (idleTimer) window.clearTimeout(idleTimer);
@@ -35,6 +44,7 @@ function nowChile(date = new Date()){
   return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}:${parts.second}`;
 }
 
+/* ---- Toast & Overlay ---- */
 function toast(msg: string, type?: 'ok' | 'err'){
   const t = $('#toast')!;
   t.textContent = msg; t.className=''; if(type) t.classList.add(type);
@@ -103,8 +113,11 @@ function all(store: string){ return new Promise<any[]>((res,rej)=>{
 /* -------------- Respaldo (File System API) */
 let dirHandle: any = null;
 async function pickDir(){
-  try{ // @ts-ignore
-    dirHandle = await (window as any).showDirectoryPicker(); $('#dirInfo')!.textContent='Carpeta seleccionada para respaldo.'; }catch{}
+  try{
+    // @ts-ignore
+    dirHandle = await (window as any).showDirectoryPicker();
+    $('#dirInfo')!.textContent='Carpeta seleccionada para respaldo.';
+  }catch{}
 }
 async function appendNDJSON(filename: string, obj: any){
   if(!dirHandle) return;
@@ -202,7 +215,8 @@ let participant: any = null, round: any = null;
 let entries: Record<BrandKey, boolean> = { tanqueray:false, johnnie_walker:false };
 
 /* -------------- Flujo ------------------- */
-$('#btnStart')!.onclick = ()=> show('scrForm');
+const btnStart = $('#btnStart') as HTMLButtonElement;
+btnStart.onclick = ()=> { if (calibrating) return; show('scrForm'); };
 $('#btnFormBack')!.onclick = ()=> show('scrHome');
 
 $('#btnFormNext')!.onclick = async ()=>{
@@ -304,20 +318,17 @@ async function submitAnswer(brand: BrandKey, idx: number | null, txt: string | n
   if(idx===null){
     toast('Se acabó el tiempo', 'err');
   } else if(is_correct){
-    if(btn) btn.classList.add('pulse-ok');
+    btn?.classList.add('pulse-ok');
     await createEntry(brand, true, txt || '');
     overlay('ok','¡Correcto!','Estás participando');
     show(cfg.screenOk); // pantalla de marca breve
   } else {
-    if(btn) btn.classList.add('shake');
+    btn?.classList.add('shake');
     toast('Respuesta incorrecta', 'err');
     overlay('err','Respuesta incorrecta','Sigue participando');
   }
 
-  window.setTimeout(()=>{
-    if(brand==='tanqueray'){ startQuestion('johnnie_walker'); }
-    else { finishRound(); }
-  }, 1200);
+  window.setTimeout(()=>{ if(brand==='tanqueray'){ startQuestion('johnnie_walker'); } else { finishRound(); } }, 1200);
 }
 
 async function createEntry(brand: BrandKey, is_correct: boolean, answer: string){
@@ -363,6 +374,7 @@ function hardReset(){
 }
 
 /* ---------- Panel admin (tap 5×) -------- */
+const scrHome = $('#scrHome') as HTMLElement;
 let taps=0, tapTimer: number | null = null;
 $('#staffTap')!.addEventListener('click', ()=>{
   taps++; if (tapTimer) window.clearTimeout(tapTimer);
@@ -374,19 +386,10 @@ $('#btnHardReset')!.onclick = ()=> { ($('#staffPanel') as HTMLElement).style.dis
 $('#btnPickDir')!.onclick = pickDir;
 
 // Exportaciones
-$('#btnExportParticipants')!.onclick = async ()=>{
-  const rows = await all('participants');
-  downloadCSV('participants.csv', toCSVLocalized(rows, PARTICIPANT_COLUMNS));
-};
-$('#btnExportRounds')!.onclick = async ()=>{
-  const rows = await all('rounds');
-  downloadCSV('rounds.csv', toCSVLocalized(rows, ROUNDS_COLUMNS));
-};
-$('#btnExportEntries')!.onclick = async ()=>{
-  const rows = await all('entries');
-  downloadCSV('entries.csv', toCSVLocalized(rows, ENTRIES_COLUMNS));
-};
-$('#btnExportEvents')!.onclick = async ()=>{
+$('#btnExportParticipants')!.onclick = async ()=> downloadCSV('participants.csv', toCSVLocalized(await all('participants'), PARTICIPANT_COLUMNS));
+$('#btnExportRounds')!.onclick       = async ()=> downloadCSV('rounds.csv',       toCSVLocalized(await all('rounds'),       ROUNDS_COLUMNS));
+$('#btnExportEntries')!.onclick      = async ()=> downloadCSV('entries.csv',      toCSVLocalized(await all('entries'),      ENTRIES_COLUMNS));
+$('#btnExportEvents')!.onclick       = async ()=>{
   const rows = await all('events');
   const text = rows.map(r=>JSON.stringify(r)).join('\n');
   const blob = new Blob([text], { type: 'application/json' });
@@ -394,3 +397,140 @@ $('#btnExportEvents')!.onclick = async ()=>{
   const a = document.createElement('a'); a.href=url; a.download='events.jsonl'; a.click();
   URL.revokeObjectURL(url);
 };
+
+/* ========================================================================
+   CALZAR el botón HTML #btnStart con el botón impreso en la imagen de portada
+   ======================================================================== */
+
+// Usa exactamente el mismo asset que en .full-bg de #scrHome
+const HOME_BG_URL = '/assets/1.png';
+
+// Caja del botón en la imagen ORIGINAL (px). Si tienes otra resolución,
+// ajusta con el calibrador (Shift+C) y se guardará en localStorage.
+let HOME_BTN_BBOX = JSON.parse(localStorage.getItem('homeBtnBbox') || 'null') || {
+  imgW: 1080,  // ancho original de la imagen
+  imgH: 1920,  // alto  original de la imagen
+  x: 270,      // izquierda del botón dentro de la imagen
+  y: 1620,     // top del botón
+  w: 540,      // ancho del botón
+  h: 140       // alto  del botón
+};
+
+const homeBtn = $('#btnStart') as HTMLButtonElement;
+
+// Tamaño natural del PNG (por si cambia el arte)
+function getImageNaturalSize(src: string): Promise<{w:number;h:number}>{
+  return new Promise(res=>{
+    const im = new Image();
+    im.onload = () => res({w: im.naturalWidth, h: im.naturalHeight});
+    im.src = src;
+  });
+}
+
+// Cómo "cover" escala/recorta
+function calcCover(containerW:number, containerH:number, imgW:number, imgH:number){
+  const scale = Math.max(containerW / imgW, containerH / imgH);
+  const dispW = imgW * scale;
+  const dispH = imgH * scale;
+  const offsetX = (containerW - dispW) / 2; // recorte lateral
+  const offsetY = (containerH - dispH) / 2; // recorte vertical
+  return { scale, offsetX, offsetY };
+}
+
+// Posiciona el botón transparente justo encima del botón impreso
+async function positionHomeCTA(){
+  // No hacer nada si el section no está visible aún
+  if (!scrHome || !homeBtn) return;
+
+  const { w: natW, h: natH } = await getImageNaturalSize(HOME_BG_URL);
+  HOME_BTN_BBOX.imgW = natW;
+  HOME_BTN_BBOX.imgH = natH;
+
+  const vw = scrHome.clientWidth;
+  const vh = scrHome.clientHeight;
+
+  const { scale, offsetX, offsetY } = calcCover(vw, vh, natW, natH);
+  const left   = offsetX + HOME_BTN_BBOX.x * scale;
+  const top    = offsetY + HOME_BTN_BBOX.y * scale;
+  const width  = HOME_BTN_BBOX.w * scale;
+  const height = HOME_BTN_BBOX.h * scale;
+
+  homeBtn.style.position = 'absolute';
+  homeBtn.style.left   = `${left}px`;
+  homeBtn.style.top    = `${top}px`;
+  homeBtn.style.width  = `${width}px`;
+  homeBtn.style.height = `${height}px`;
+  // Si quisieras ver el rectángulo durante pruebas:
+  // homeBtn.classList.add('debug');
+}
+
+// Re-posicionar en resize/orient
+window.addEventListener('resize', positionHomeCTA);
+window.addEventListener('orientationchange', positionHomeCTA);
+
+/* ---------- Calibración (Shift + C) ---------- */
+let calibrating = false;
+let clicks: Array<{x:number;y:number}> = [];
+
+function viewportToImageCoords(vx:number, vy:number, natW:number, natH:number){
+  const vw = scrHome.clientWidth;
+  const vh = scrHome.clientHeight;
+  const { scale, offsetX, offsetY } = calcCover(vw, vh, natW, natH);
+  const xImg = (vx - offsetX) / scale;
+  const yImg = (vy - offsetY) / scale;
+  return { x: Math.max(0, Math.min(natW, xImg)), y: Math.max(0, Math.min(natH, yImg)) };
+}
+
+async function startCalibration(){
+  calibrating = true; clicks = [];
+  homeBtn.classList.add('debug'); // ver el rectángulo
+  toast('Calibración: clic en ESQ. SUP-IZQ y luego INF-DER del botón impreso', 'ok');
+}
+function endCalibration(){
+  calibrating = false;
+  homeBtn.classList.remove('debug');
+}
+
+// Clics dentro de la portada para definir caja
+scrHome.addEventListener('click', async (e)=>{
+  if(!calibrating) return;
+  const {w: natW, h: natH} = await getImageNaturalSize(HOME_BG_URL);
+  const rect = scrHome.getBoundingClientRect();
+  const pt = viewportToImageCoords(e.clientX - rect.left, e.clientY - rect.top, natW, natH);
+  clicks.push(pt);
+
+  if(clicks.length === 2){
+    const [a,b] = clicks;
+    const x = Math.min(a.x, b.x);
+    const y = Math.min(a.y, b.y);
+    const w = Math.abs(a.x - b.x);
+    const h = Math.abs(a.y - b.y);
+    HOME_BTN_BBOX = { imgW: natW, imgH: natH, x, y, w, h };
+    localStorage.setItem('homeBtnBbox', JSON.stringify(HOME_BTN_BBOX));
+    toast('Calibración guardada', 'ok');
+    endCalibration();
+    positionHomeCTA();
+  }
+});
+
+// Atajo: Shift + C para iniciar/terminar calibración
+document.addEventListener('keydown', (e)=>{
+  if(e.key.toLowerCase() === 'c' && e.shiftKey){
+    if(calibrating){ endCalibration(); toast('Calibración cancelada'); }
+    else{ startCalibration(); }
+  }
+});
+
+/* ---------- Wake Lock opcional (mantener pantalla despierta) ---------- */
+let wakeLock: any;
+async function requestWakeLock(){
+  try { wakeLock = await (navigator as any).wakeLock.request('screen');
+        wakeLock.addEventListener('release', ()=>console.log('WakeLock liberado')); } catch {}
+}
+document.addEventListener('visibilitychange', ()=> {
+  if (document.visibilityState === 'visible') requestWakeLock();
+});
+
+/* ---------- Inicialización ---------- */
+requestWakeLock();
+positionHomeCTA(); // por si ya estamos en portada al cargar

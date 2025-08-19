@@ -76,16 +76,8 @@ label{color:#ddd;font-size:clamp(12px,1.6vw,14px);margin:6px 0 6px;display:block
 #staffPanel{position:fixed;inset:0;background:rgba(0,0,0,.8);backdrop-filter:blur(2px);display:none;align-items:center;justify-content:center}
 #staffPanel .card{width:min(100%, 880px)}
 
-/* Botón de portada: invisible, solo capta clics y foco */
-#scrHome #btnStart{
-  position:absolute;
-  background:transparent; 
-  color:transparent; 
-  border:0; 
-  box-shadow:none;
-  z-index:1;            /* por encima del .veil */
-  /* estas 4 las setea JS: left/top/width/height */
-}
+
+
 
 /* Opcional: modo debug para ver el rectángulo del botón */
 #scrHome #btnStart.debug{
