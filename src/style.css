@@ -75,19 +75,3 @@ label{color:#ddd;font-size:clamp(12px,1.6vw,14px);margin:6px 0 6px;display:block
 /* Admin */
 #staffPanel{position:fixed;inset:0;background:rgba(0,0,0,.8);backdrop-filter:blur(2px);display:none;align-items:center;justify-content:center}
 #staffPanel .card{width:min(100%, 880px)}
-
-
-
-
-/* Opcional: modo debug para ver el rectángulo del botón */
-#scrHome #btnStart.debug{
-  outline:2px solid rgba(255,255,0,.9);
-  background:rgba(255,255,0,.12);
-  color:transparent;
-}
-
-/* Accesibilidad al navegar con teclado (si aplica) */
-#scrHome #btnStart:focus-visible{
-  outline:3px dashed #c8a64a;
-  outline-offset:6px;
-}
