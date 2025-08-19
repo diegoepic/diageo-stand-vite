@@ -1,12 +1,13 @@
 // src/main.ts — lógica del Stand DIAGEO en TypeScript para Vite
-// Incluye: flujo completo, IndexedDB, exportaciones, PWA, wake lock opcional,
-// overlay/toast, timer, y CALCE del botón “JUGAR” con el botón impreso en la imagen.
+// Flujo completo, IndexedDB, exportaciones, PWA, wake lock, overlay/toast y timer.
+// OJO: SIN la lógica de calce del botón (botón vuelve a ser visible/centrado).
 
 import './style.css';
 
 /* ---------------- PWA ---------------- */
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(()=>{}));
+  // Usa ruta relativa para que funcione en subcarpeta/túneles
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(()=>{}));
 }
 
 /* -------------- Helpers UI ----------- */
@@ -17,20 +18,15 @@ let idleTimer: number | undefined;
 
 function show(id: string){
   $$('.screen').forEach(s => s.classList.remove('show'));
-  const scr = $('#'+id)!;
-  scr.classList.add('show');
+  $('#'+id)!.classList.add('show');
   resetIdle();
-
-  // Reposicionar CTA cuando entramos a la portada
-  if (id === 'scrHome') {
-    positionHomeCTA();
-  }
 }
 function resetIdle(){
   if (idleTimer) window.clearTimeout(idleTimer);
   idleTimer = window.setTimeout(() => hardReset(), 35000);
 }
 ['click','pointerdown','keydown'].forEach(ev => document.addEventListener(ev, resetIdle));
+
 const uid = (p: string) => `${p}_${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
 
 /* ---- Hora de Chile (America/Santiago) ---- */
@@ -148,7 +144,7 @@ function boolES(v: any){ return v === true ? 'Sí' : v === false ? 'No' : ''; }
 
 type Col = { key: string; header: string; transform?: (val: any, row: any) => any };
 function toCSVLocalized(rows: any[], columns: Col[], sep: string = SEP){
-  const esc = (v: any) => `"`+String(v ?? '').replaceAll('"','""')+`"`;
+  const esc = (v: any) => `"` + String(v ?? '').replace(/"/g, '""') + `"`; // Escapa comillas dobles
   const headers = columns.map(c => c.header).join(sep);
   if (!rows || rows.length === 0) return headers + '\r\n';
   const lines = rows.map(row => columns.map(c => {
@@ -215,8 +211,7 @@ let participant: any = null, round: any = null;
 let entries: Record<BrandKey, boolean> = { tanqueray:false, johnnie_walker:false };
 
 /* -------------- Flujo ------------------- */
-const btnStart = $('#btnStart') as HTMLButtonElement;
-btnStart.onclick = ()=> { if (calibrating) return; show('scrForm'); };
+$('#btnStart')!.onclick = ()=> show('scrForm');
 $('#btnFormBack')!.onclick = ()=> show('scrHome');
 
 $('#btnFormNext')!.onclick = async ()=>{
@@ -374,7 +369,6 @@ function hardReset(){
 }
 
 /* ---------- Panel admin (tap 5×) -------- */
-const scrHome = $('#scrHome') as HTMLElement;
 let taps=0, tapTimer: number | null = null;
 $('#staffTap')!.addEventListener('click', ()=>{
   taps++; if (tapTimer) window.clearTimeout(tapTimer);
@@ -398,129 +392,6 @@ $('#btnExportEvents')!.onclick       = async ()=>{
   URL.revokeObjectURL(url);
 };
 
-/* ========================================================================
-   CALZAR el botón HTML #btnStart con el botón impreso en la imagen de portada
-   ======================================================================== */
-
-// Usa exactamente el mismo asset que en .full-bg de #scrHome
-const HOME_BG_URL = '/assets/1.png';
-
-// Caja del botón en la imagen ORIGINAL (px). Si tienes otra resolución,
-// ajusta con el calibrador (Shift+C) y se guardará en localStorage.
-let HOME_BTN_BBOX = JSON.parse(localStorage.getItem('homeBtnBbox') || 'null') || {
-  imgW: 1080,  // ancho original de la imagen
-  imgH: 1920,  // alto  original de la imagen
-  x: 270,      // izquierda del botón dentro de la imagen
-  y: 1620,     // top del botón
-  w: 540,      // ancho del botón
-  h: 140       // alto  del botón
-};
-
-const homeBtn = $('#btnStart') as HTMLButtonElement;
-
-// Tamaño natural del PNG (por si cambia el arte)
-function getImageNaturalSize(src: string): Promise<{w:number;h:number}>{
-  return new Promise(res=>{
-    const im = new Image();
-    im.onload = () => res({w: im.naturalWidth, h: im.naturalHeight});
-    im.src = src;
-  });
-}
-
-// Cómo "cover" escala/recorta
-function calcCover(containerW:number, containerH:number, imgW:number, imgH:number){
-  const scale = Math.max(containerW / imgW, containerH / imgH);
-  const dispW = imgW * scale;
-  const dispH = imgH * scale;
-  const offsetX = (containerW - dispW) / 2; // recorte lateral
-  const offsetY = (containerH - dispH) / 2; // recorte vertical
-  return { scale, offsetX, offsetY };
-}
-
-// Posiciona el botón transparente justo encima del botón impreso
-async function positionHomeCTA(){
-  // No hacer nada si el section no está visible aún
-  if (!scrHome || !homeBtn) return;
-
-  const { w: natW, h: natH } = await getImageNaturalSize(HOME_BG_URL);
-  HOME_BTN_BBOX.imgW = natW;
-  HOME_BTN_BBOX.imgH = natH;
-
-  const vw = scrHome.clientWidth;
-  const vh = scrHome.clientHeight;
-
-  const { scale, offsetX, offsetY } = calcCover(vw, vh, natW, natH);
-  const left   = offsetX + HOME_BTN_BBOX.x * scale;
-  const top    = offsetY + HOME_BTN_BBOX.y * scale;
-  const width  = HOME_BTN_BBOX.w * scale;
-  const height = HOME_BTN_BBOX.h * scale;
-
-  homeBtn.style.position = 'absolute';
-  homeBtn.style.left   = `${left}px`;
-  homeBtn.style.top    = `${top}px`;
-  homeBtn.style.width  = `${width}px`;
-  homeBtn.style.height = `${height}px`;
-  // Si quisieras ver el rectángulo durante pruebas:
-  // homeBtn.classList.add('debug');
-}
-
-// Re-posicionar en resize/orient
-window.addEventListener('resize', positionHomeCTA);
-window.addEventListener('orientationchange', positionHomeCTA);
-
-/* ---------- Calibración (Shift + C) ---------- */
-let calibrating = false;
-let clicks: Array<{x:number;y:number}> = [];
-
-function viewportToImageCoords(vx:number, vy:number, natW:number, natH:number){
-  const vw = scrHome.clientWidth;
-  const vh = scrHome.clientHeight;
-  const { scale, offsetX, offsetY } = calcCover(vw, vh, natW, natH);
-  const xImg = (vx - offsetX) / scale;
-  const yImg = (vy - offsetY) / scale;
-  return { x: Math.max(0, Math.min(natW, xImg)), y: Math.max(0, Math.min(natH, yImg)) };
-}
-
-async function startCalibration(){
-  calibrating = true; clicks = [];
-  homeBtn.classList.add('debug'); // ver el rectángulo
-  toast('Calibración: clic en ESQ. SUP-IZQ y luego INF-DER del botón impreso', 'ok');
-}
-function endCalibration(){
-  calibrating = false;
-  homeBtn.classList.remove('debug');
-}
-
-// Clics dentro de la portada para definir caja
-scrHome.addEventListener('click', async (e)=>{
-  if(!calibrating) return;
-  const {w: natW, h: natH} = await getImageNaturalSize(HOME_BG_URL);
-  const rect = scrHome.getBoundingClientRect();
-  const pt = viewportToImageCoords(e.clientX - rect.left, e.clientY - rect.top, natW, natH);
-  clicks.push(pt);
-
-  if(clicks.length === 2){
-    const [a,b] = clicks;
-    const x = Math.min(a.x, b.x);
-    const y = Math.min(a.y, b.y);
-    const w = Math.abs(a.x - b.x);
-    const h = Math.abs(a.y - b.y);
-    HOME_BTN_BBOX = { imgW: natW, imgH: natH, x, y, w, h };
-    localStorage.setItem('homeBtnBbox', JSON.stringify(HOME_BTN_BBOX));
-    toast('Calibración guardada', 'ok');
-    endCalibration();
-    positionHomeCTA();
-  }
-});
-
-// Atajo: Shift + C para iniciar/terminar calibración
-document.addEventListener('keydown', (e)=>{
-  if(e.key.toLowerCase() === 'c' && e.shiftKey){
-    if(calibrating){ endCalibration(); toast('Calibración cancelada'); }
-    else{ startCalibration(); }
-  }
-});
-
 /* ---------- Wake Lock opcional (mantener pantalla despierta) ---------- */
 let wakeLock: any;
 async function requestWakeLock(){
@@ -533,4 +404,4 @@ document.addEventListener('visibilitychange', ()=> {
 
 /* ---------- Inicialización ---------- */
 requestWakeLock();
-positionHomeCTA(); // por si ya estamos en portada al cargar
+show('scrHome'); // asegúrate de partir en portada

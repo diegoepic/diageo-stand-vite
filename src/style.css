@@ -75,3 +75,16 @@ label{color:#ddd;font-size:clamp(12px,1.6vw,14px);margin:6px 0 6px;display:block
 /* Admin */
 #staffPanel{position:fixed;inset:0;background:rgba(0,0,0,.8);backdrop-filter:blur(2px);display:none;align-items:center;justify-content:center}
 #staffPanel .card{width:min(100%, 880px)}
+/* Botón visible centrado en la portada */
+#scrHome #btnStart{
+  position: relative;           /* no absoluto */
+  z-index: 2;                   /* sobre el fondo */
+  background: linear-gradient(var(--gold-2), var(--gold));
+  color: #171309;
+  border: 0;
+  border-radius: 16px;
+  padding: 18px 28px;
+  font-weight: 800;
+  font-size: clamp(20px, 3.4vw, 36px);
+  box-shadow: 0 10px 24px rgba(0,0,0,.35);
+}
